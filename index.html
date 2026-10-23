@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Painel Executivo de Resultados</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              900: '#14532d',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans antialiased">
+
+  <!-- MODAL DE LOGIN -->
+  <div id="loginModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md px-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-8 max-w-md w-full shadow-2xl relative overflow-hidden">
+      <!-- Glow effect -->
+      <div class="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      
+      <div class="flex items-center space-x-3 mb-6">
+        <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+          <i data-lucide="shield-check" class="w-7 h-7"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-slate-100">Acesso Restrito</h2>
+          <p class="text-xs text-slate-400">Identifique-se para acessar o Painel de Performance</p>
+        </div>
+      </div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">E-mail de Acesso</label>
+          <input type="email" id="loginEmail" required placeholder="ex: seu.email@arc.com" 
+            class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Senha</label>
+          <input type="password" id="loginPass" required placeholder="••••••••" 
+            class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition">
+        </div>
+
+        <div id="loginError" class="hidden text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg flex items-center gap-2">
+          <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+          <span>Credenciais inválidas. Verifique e-mail e senha.</span>
+        </div>
+
+        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-lg text-sm transition shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2">
+          <span>Entrar no Sistema</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </form>
+
+   </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER (Oculto até o login) -->
+  <div id="appContainer" class="hidden flex-1 flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-40">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/20">
+            <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h1 class="font-bold text-lg leading-tight">RV Operadores - CDD Araçatuba - DPO 2.0</h1>
+            <p class="text-xs text-slate-400">Indicadores * TMA * WMS * EFD * EFC *</p>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+          <div class="hidden sm:flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-xs text-slate-300">
+            <i data-lucide="award" class="w-4 h-4 text-emerald-400"></i>
+            <span>Teto Bônus: <strong>R$ 380,00/mês</strong> por colaborador</span>
+          </div>
+          <div id="userBadge" class="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-xs text-slate-300">
+            <i data-lucide="user" class="w-4 h-4 text-emerald-400"></i>
+            <span id="loggedUserName">Usuário</span>
+          </div>
+          <button onclick="logout()" class="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold transition border border-slate-700">
+            <i data-lucide="log-out" class="w-4 h-4 text-rose-400"></i>
+            <span>Sair</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+      <!-- Painel: Consolidado Geral de Resultados -->
+      <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-base font-semibold text-slate-100 flex items-center gap-2">
+              <i data-lucide="pie-chart" class="w-5 h-5 text-emerald-400"></i>
+              Consolidado Geral de Resultados
+            </h2>
+            <p class="text-xs text-slate-400">Resultados consolidados dos indicadores principais por usuário</p>
+          </div>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left text-slate-300">
+            <thead class="uppercase bg-slate-900/80 text-slate-400 border-b border-slate-700">
+              <tr>
+                <th scope="col" class="py-3 px-4">Usuário</th>
+                <th scope="col" class="py-3 px-4 text-center">metaTMA</th>
+                <th scope="col" class="py-3 px-4 text-center">realTMA</th>
+                <th scope="col" class="py-3 px-4 text-center">metaAD</th>
+                <th scope="col" class="py-3 px-4 text-center">realAD</th>
+                <th scope="col" class="py-3 px-4 text-center">metaEFC</th>
+                <th scope="col" class="py-3 px-4 text-center">realEFC</th>
+              </tr>
+            </thead>
+            <tbody id="consolidatedTableBody" class="divide-y divide-slate-800">
+              <!-- As linhas são renderizadas dinamicamente conforme as permissões do usuário -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Filters Bar -->
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 flex flex-wrap gap-4 items-center justify-between">
+        <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
+          <!-- User Filter -->
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-slate-400 font-medium">Colaborador</label>
+            <div class="relative">
+              <select id="userFilter" onchange="applyFilters()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 appearance-none pr-8 cursor-pointer">
+                <option value="ALL">Todos os Colaboradores</option>
+                <option value="LUCAS TEIXEIRA FERREIRA DIAS">LUCAS TEIXEIRA FERREIRA DIAS</option>
+                <option value="Douglas Martins Ribeiro Lima">Douglas Martins Ribeiro Lima</option>
+                <option value="ANTONIO MARCOS GARCIA">ANTONIO MARCOS GARCIA</option>
+              </select>
+              <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none"></i>
+            </div>
+          </div>
+
+          <!-- Date Range Filter -->
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-slate-400 font-medium">Data Inicial</label>
+            <input type="date" id="dateStart" onchange="applyFilters()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-slate-400 font-medium">Data Final</label>
+            <input type="date" id="dateEnd" onchange="applyFilters()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="resetFilters()" class="text-xs text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 transition">
+            Limpar Filtros
+          </button>
+        </div>
+      </div>
+
+      <!-- Top KPI Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+        <!-- Total Bonus Card -->
+        <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 relative overflow-hidden hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-950/20 transition-all duration-300">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Total em Bônus</p>
+              <h3 class="text-2xl font-bold text-emerald-400 mt-1" id="kpiBonus">R$ 0,00</h3>
+            </div>
+            <div class="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-lg">
+              <i data-lucide="dollar-sign" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <p class="text-xs text-slate-500 mt-3" id="kpiBonusSub">Acumulado dos dias selecionados</p>
+        </div>
+
+        <!-- Hit Rate Card -->
+        <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 relative overflow-hidden hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-950/20 transition-all duration-300">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Taxa de Atingimento</p>
+              <h3 class="text-2xl font-bold text-slate-100 mt-1" id="kpiHitRate">0%</h3>
+            </div>
+            <div class="p-2.5 bg-blue-500/10 text-blue-400 rounded-lg">
+              <i data-lucide="target" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <p class="text-xs text-slate-500 mt-3" id="kpiHitRateSub">Metas Batidas / Oportunidades</p>
+        </div>
+
+        <!-- Top Performer Card -->
+        <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 relative overflow-hidden hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-950/20 transition-all duration-300">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Maior Bônus</p>
+              <h3 class="text-lg font-bold text-amber-400 mt-1 truncate" id="kpiTopUser">-</h3>
+            </div>
+            <div class="p-2.5 bg-amber-500/10 text-amber-400 rounded-lg">
+              <i data-lucide="trophy" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <p class="text-xs text-slate-500 mt-3" id="kpiTopUserSub">Melhor aproveitamento</p>
+        </div>
+
+      </div>
+
+      <!-- Summary per User Table -->
+      <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-base font-semibold text-slate-100">Resumo Consolidado com Meta vs. Real</h2>
+            <p class="text-xs text-slate-400">Comparativo direto detalhando Meta e Resultado Real por indicador</p>
+          </div>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left text-slate-300">
+            <thead class="uppercase bg-slate-900/80 text-slate-400 border-b border-slate-700">
+              <tr>
+                <th scope="col" class="py-3 px-4">Colaborador</th>
+                <th scope="col" class="py-3 px-4 text-center">TMA</th>
+                <th scope="col" class="py-3 px-4 text-center">AD WMS</th>
+                <th scope="col" class="py-3 px-4 text-center">EFD</th>
+                <th scope="col" class="py-3 px-4 text-center">EFC</th>
+                <th scope="col" class="py-3 px-4 text-right">Bônus Acumulado</th>
+              </tr>
+            </thead>
+            <tbody id="summaryTableBody" class="divide-y divide-slate-800">
+              <!-- Dynamic rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Charts Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Evolution Line Chart -->
+        <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 flex flex-col">
+          <h2 class="text-base font-semibold text-slate-100 mb-1">Evolução do Bônus Diário (R$)</h2>
+          <p class="text-xs text-slate-400 mb-4">Desempenho acumulado em dias operacionais (Segunda a Sábado)</p>
+          <div class="flex-1 min-h-[260px] relative">
+            <canvas id="bonusChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Indicator Hit Rate Bar Chart -->
+        <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 flex flex-col">
+          <h2 class="text-base font-semibold text-slate-100 mb-1">Taxa de Sucesso por Indicador</h2>
+          <p class="text-xs text-slate-400 mb-4">Percentual de dias operacionais em que a meta foi atingida</p>
+          <div class="flex-1 min-h-[260px] relative">
+            <canvas id="kpiChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Timeline / Daily Log Table -->
+      <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <div>
+            <h2 class="text-base font-semibold text-slate-100">Linha do Tempo de Resultados Diários</h2>
+            <p class="text-xs text-slate-400">Detalhamento dia a dia das metas e valores atingidos</p>
+          </div>
+          
+          <div class="relative w-full sm:w-64">
+            <input type="text" id="searchInput" onkeyup="applyFilters()" placeholder="Buscar por colaborador ou data..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+            <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-2.5 top-2"></i>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left text-slate-300">
+            <thead class="uppercase bg-slate-900/80 text-slate-400 border-b border-slate-700">
+              <tr>
+                <th scope="col" class="py-3 px-3">Colaborador</th>
+                <th scope="col" class="py-3 px-3">Data</th>
+                <th scope="col" class="py-3 px-3 text-center">Dia</th>
+                <th scope="col" class="py-3 px-3 text-center">TMA</th>
+                <th scope="col" class="py-3 px-3 text-center">AD WMS</th>
+                <th scope="col" class="py-3 px-3 text-center">EFD</th>
+                <th scope="col" class="py-3 px-3 text-center">EFC</th>
+                <th scope="col" class="py-3 px-3 text-center">Status Bônus</th>
+                <th scope="col" class="py-3 px-3 text-right">Ganho Dia</th>
+              </tr>
+            </thead>
+            <tbody id="timelineTableBody" class="divide-y divide-slate-800">
+              <!-- Dynamic rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    // --- LOGIN & CONTROLE DE ACESSO ---
+    const USERS_DB = {
+      "odin@arc.com": { pass: "@Skol182777", name: "Administrador (Odin)", role: "admin" },
+      "lucas@arc.com": { pass: "@Skol123", name: "LUCAS TEIXEIRA FERREIRA DIAS", role: "user" },
+      "antonio@arc.com": { pass: "@Skol456", name: "ANTONIO MARCOS GARCIA", role: "user" },
+      "douglas@arc.com": { pass: "@Skol789", name: "Douglas Martins Ribeiro Lima", role: "user" }
+    };
+
+    // Dados para o painel de Consolidado Geral de Resultados
+    const consolidatedStaticData = [
+      { name: "LUCAS TEIXEIRA FERREIRA DIAS", metaTMA: "01:19:31", realTMA: "01:04:22", metaAD: "90%", realAD: "98%", metaEFC: "99%", realEFC: "100%", color: "emerald", initial: "L" },
+      { name: "ANTONIO MARCOS GARCIA", metaTMA: "01:19:31", realTMA: "01:04:22", metaAD: "90%", realAD: "97%", metaEFC: "99%", realEFC: "100%", color: "blue", initial: "A" },
+      { name: "Douglas Martins Ribeiro Lima", metaTMA: "01:19:31", realTMA: "01:04:22", metaAD: "90%", realAD: "96%", metaEFC: "99%", realEFC: "100%", color: "amber", initial: "D" }
+    ];
+
+    let currentUser = null;
+
+    function handleLogin(event) {
+      event.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+      const pass = document.getElementById('loginPass').value.trim();
+      const errorEl = document.getElementById('loginError');
+
+      if (USERS_DB[email] && USERS_DB[email].pass === pass) {
+        currentUser = USERS_DB[email];
+        errorEl.classList.add('hidden');
+        document.getElementById('loginModal').classList.add('hidden');
+        document.getElementById('appContainer').classList.remove('hidden');
+        
+        document.getElementById('loggedUserName').innerText = currentUser.name;
+        
+        const userFilterSelect = document.getElementById('userFilter');
+        if (currentUser.role === 'user') {
+          userFilterSelect.value = currentUser.name;
+          userFilterSelect.disabled = true;
+          userFilterSelect.classList.add('opacity-70', 'cursor-not-allowed');
+        } else {
+          userFilterSelect.value = 'ALL';
+          userFilterSelect.disabled = false;
+          userFilterSelect.classList.remove('opacity-70', 'cursor-not-allowed');
+        }
+
+        renderConsolidatedTable();
+        applyFilters();
+        lucide.createIcons();
+      } else {
+        errorEl.classList.remove('hidden');
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('loginForm').reset();
+      document.getElementById('loginError').classList.add('hidden');
+      document.getElementById('appContainer').classList.add('hidden');
+      document.getElementById('loginModal').classList.remove('hidden');
+    }
+
+    // Renderiza a tabela do Consolidado Geral respeitando as permissões do usuário
+    function renderConsolidatedTable() {
+      const tbody = document.getElementById('consolidatedTableBody');
+      
+      const filteredConsolidated = currentUser && currentUser.role === 'user'
+        ? consolidatedStaticData.filter(item => item.name === currentUser.name)
+        : consolidatedStaticData;
+
+      tbody.innerHTML = filteredConsolidated.map(item => `
+        <tr class="hover:bg-slate-800/60 transition-colors">
+          <td class="py-3.5 px-4 font-semibold text-slate-100 flex items-center gap-2">
+            <div class="w-7 h-7 rounded-full bg-${item.color}-500/20 border border-${item.color}-500/30 flex items-center justify-center text-xs font-bold text-${item.color}-400 shrink-0">
+              ${item.initial}
+            </div>
+            <span>${item.name}</span>
+          </td>
+          <td class="py-3 px-3 text-center text-slate-400">${item.metaTMA}</td>
+          <td class="py-3 px-3 text-center font-bold text-emerald-400">${item.realTMA}</td>
+          <td class="py-3 px-3 text-center text-slate-400">${item.metaAD}</td>
+          <td class="py-3 px-3 text-center font-bold text-emerald-400">${item.realAD}</td>
+          <td class="py-3 px-3 text-center text-slate-400">${item.metaEFC}</td>
+          <td class="py-3 px-3 text-center font-bold text-emerald-400">${item.realEFC}</td>
+        </tr>
+      `).join('');
+    }
+
+    // --- CONSTANTS & CONFIGS ---
+    const DAILY_INDICATOR_RATE = 380 / 4 / 26; // R$ 3.65384615...
+
+    // --- RAW DATA SETS ---
+    const rawTimelineData = [
+      // Lucas Teixeira
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "01/10/2026", metaTMA: "01:19", realTMA: "00:55", metaAD: "", realAD: "", metaEFD: "", realEFD: "", metaEFC: "99%", realEFC: "100%" },
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "02/10/2026", metaTMA: "01:19", realTMA: "01:55", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "03/10/2026", metaTMA: "01:19", realTMA: "01:02", metaAD: "90%", realAD: "96%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "05/10/2026", metaTMA: "01:19", realTMA: "00:43", metaAD: "90%", realAD: "98%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "06/10/2026", metaTMA: "01:19", realTMA: "00:57", metaAD: "90%", realAD: "97%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "07/10/2026", metaTMA: "01:19", realTMA: "00:55", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "08/10/2026", metaTMA: "01:19", realTMA: "01:15", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "09/10/2026", metaTMA: "01:19", realTMA: "01:09", metaAD: "90%", realAD: "84%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "10/10/2026", metaTMA: "01:19", realTMA: "00:57", metaAD: "90%", realAD: "70%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "12/10/2026", metaTMA: "01:19", realTMA: "01:21", metaAD: "", realAD: "", metaEFD: "", realEFD: "", metaEFC: "99%", realEFC: "100%" },
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "13/10/2026", metaTMA: "01:19", realTMA: "01:04", metaAD: "90%", realAD: "99%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "14/10/2026", metaTMA: "01:19", realTMA: "01:15", metaAD: "90%", realAD: "98%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "15/10/2026", metaTMA: "01:19", realTMA: "01:05", metaAD: "90%", realAD: "99%", metaEFD: "90%", realEFD: "93%", metaEFC: "99%", realEFC: "100%" },
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "16/10/2026", metaTMA: "", realTMA: "", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "93%", metaEFC: "99%", realEFC: "100%" },
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "17/10/2026", metaTMA: "01:19", realTMA: "00:53", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "19/10/2026", metaTMA: "01:19", realTMA: "00:52", metaAD: "", realAD: "", metaEFD: "", realEFD: "", metaEFC: "99%", realEFC: "100%" },
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "20/10/2026", metaTMA: "01:19", realTMA: "01:18", metaAD: "", realAD: "", metaEFD: "", realEFD: "", metaEFC: "99%", realEFC: "100%" },
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "21/10/2026", metaTMA: "01:19", realTMA: "01:08", metaAD: "", realAD: "", metaEFD: "", realEFD: "", metaEFC: "99%", realEFC: "100%" },
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "22/10/2026", metaTMA: "", realTMA: "", metaAD: "", realAD: "", metaEFD: "", realEFD: "", metaEFC: "99%", realEFC: "100%" },
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "23/10/2026", metaTMA: "", realTMA: "", metaAD: "", realAD: "", metaEFD: "", realEFD: "", metaEFC: "99%", realEFC: "100%" },
+      { user: "LUCAS TEIXEIRA FERREIRA DIAS", date: "24/10/2026", metaTMA: "", realTMA: "", metaAD: "0%", realAD: "", metaEFD: "", realEFD: "", metaEFC: "99%", realEFC: "100%" },
+
+      // Antonio Marcos
+      { user: "ANTONIO MARCOS GARCIA", date: "01/10/2026", metaTMA: "01:19", realTMA: "00:55", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "ANTONIO MARCOS GARCIA", date: "02/10/2026", metaTMA: "01:19", realTMA: "01:55", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "ANTONIO MARCOS GARCIA", date: "03/10/2026", metaTMA: "01:19", realTMA: "01:02", metaAD: "90%", realAD: "97%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+
+      { user: "ANTONIO MARCOS GARCIA", date: "05/10/2026", metaTMA: "01:19", realTMA: "00:43", metaAD: "90%", realAD: "98%", metaEFD: "90%", realEFD: "92%", metaEFC: "99%", realEFC: "100%" },
+      { user: "ANTONIO MARCOS GARCIA", date: "06/10/2026", metaTMA: "01:19", realTMA: "00:57", metaAD: "90%", realAD: "99%", metaEFD: "90%", realEFD: "94%", metaEFC: "99%", realEFC: "100%" },
+      { user: "ANTONIO MARCOS GARCIA", date: "07/10/2026", metaTMA: "01:19", realTMA: "00:55", metaAD: "90%", realAD: "98%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "ANTONIO MARCOS GARCIA", date: "08/10/2026", metaTMA: "01:19", realTMA: "01:15", metaAD: "90%", realAD: "98%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "ANTONIO MARCOS GARCIA", date: "09/10/2026", metaTMA: "01:19", realTMA: "01:09", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "86%", metaEFC: "99%", realEFC: "100%" },
+      { user: "ANTONIO MARCOS GARCIA", date: "10/10/2026", metaTMA: "01:19", realTMA: "00:57", metaAD: "90%", realAD: "95%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+
+      { user: "ANTONIO MARCOS GARCIA", date: "12/10/2026", metaTMA: "01:19", realTMA: "01:21", metaAD: "", realAD: "", metaEFD: "", realEFD: "", metaEFC: "99%", realEFC: "100%" },
+      { user: "ANTONIO MARCOS GARCIA", date: "13/10/2026", metaTMA: "01:19", realTMA: "01:04", metaAD: "90%", realAD: "93%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "ANTONIO MARCOS GARCIA", date: "14/10/2026", metaTMA: "01:19", realTMA: "01:15", metaAD: "90%", realAD: "99%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "ANTONIO MARCOS GARCIA", date: "15/10/2026", metaTMA: "01:19", realTMA: "01:05", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "94%", metaEFC: "99%", realEFC: "100%" },
+      { user: "ANTONIO MARCOS GARCIA", date: "16/10/2026", metaTMA: "", realTMA: "", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "ANTONIO MARCOS GARCIA", date: "17/10/2026", metaTMA: "01:19", realTMA: "00:53", metaAD: "90%", realAD: "62%", metaEFD: "", realEFD: "", metaEFC: "99%", realEFC: "100%" },
+
+      { user: "ANTONIO MARCOS GARCIA", date: "19/10/2026", metaTMA: "01:19", realTMA: "00:52", metaAD: "90%", realAD: "98%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "ANTONIO MARCOS GARCIA", date: "20/10/2026", metaTMA: "01:19", realTMA: "01:18", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "91%", metaEFC: "99%", realEFC: "100%" },
+      { user: "ANTONIO MARCOS GARCIA", date: "21/10/2026", metaTMA: "01:19", realTMA: "01:08", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "95%", metaEFC: "99%", realEFC: "100%" },
+      { user: "ANTONIO MARCOS GARCIA", date: "22/10/2026", metaTMA: "", realTMA: "", metaAD: "", realAD: "", metaEFD: "", realEFD: "", metaEFC: "99%", realEFC: "100%" },
+      { user: "ANTONIO MARCOS GARCIA", date: "23/10/2026", metaTMA: "", realTMA: "", metaAD: "", realAD: "", metaEFD: "", realEFD: "", metaEFC: "99%", realEFC: "100%" },
+      { user: "ANTONIO MARCOS GARCIA", date: "24/10/2026", metaTMA: "", realTMA: "", metaAD: "0%", realAD: "", metaEFD: "", realEFD: "", metaEFC: "99%", realEFC: "100%" },
+
+      // Douglas Martins
+      { user: "Douglas Martins Ribeiro Lima", date: "01/10/2026", metaTMA: "01:19", realTMA: "00:55", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "Douglas Martins Ribeiro Lima", date: "02/10/2026", metaTMA: "01:19", realTMA: "01:55", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "Douglas Martins Ribeiro Lima", date: "03/10/2026", metaTMA: "01:19", realTMA: "01:02", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+
+      { user: "Douglas Martins Ribeiro Lima", date: "05/10/2026", metaTMA: "01:19", realTMA: "00:43", metaAD: "90%", realAD: "99%", metaEFD: "90%", realEFD: "91%", metaEFC: "99%", realEFC: "100%" },
+      { user: "Douglas Martins Ribeiro Lima", date: "06/10/2026", metaTMA: "01:19", realTMA: "00:57", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "Douglas Martins Ribeiro Lima", date: "07/10/2026", metaTMA: "01:19", realTMA: "00:55", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "Douglas Martins Ribeiro Lima", date: "08/10/2026", metaTMA: "01:19", realTMA: "01:15", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "Douglas Martins Ribeiro Lima", date: "09/10/2026", metaTMA: "01:19", realTMA: "01:09", metaAD: "90%", realAD: "99%", metaEFD: "90%", realEFD: "88%", metaEFC: "99%", realEFC: "100%" },
+      { user: "Douglas Martins Ribeiro Lima", date: "10/10/2026", metaTMA: "01:19", realTMA: "00:57", metaAD: "90%", realAD: "98%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+
+      { user: "Douglas Martins Ribeiro Lima", date: "12/10/2026", metaTMA: "01:19", realTMA: "01:21", metaAD: "90%", realAD: "98%", metaEFD: "90%", realEFD: "57%", metaEFC: "99%", realEFC: "100%" },
+      { user: "Douglas Martins Ribeiro Lima", date: "13/10/2026", metaTMA: "01:19", realTMA: "01:04", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "Douglas Martins Ribeiro Lima", date: "14/10/2026", metaTMA: "01:19", realTMA: "01:15", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "Douglas Martins Ribeiro Lima", date: "15/10/2026", metaTMA: "01:19", realTMA: "01:05", metaAD: "90%", realAD: "95%", metaEFD: "90%", realEFD: "90%", metaEFC: "99%", realEFC: "100%" },
+      { user: "Douglas Martins Ribeiro Lima", date: "16/10/2026", metaTMA: "", realTMA: "", metaAD: "90%", realAD: "98%", metaEFD: "90%", realEFD: "87%", metaEFC: "99%", realEFC: "100%" },
+      { user: "Douglas Martins Ribeiro Lima", date: "17/10/2026", metaTMA: "01:19", realTMA: "00:53", metaAD: "90%", realAD: "99%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+
+      { user: "Douglas Martins Ribeiro Lima", date: "19/10/2026", metaTMA: "01:19", realTMA: "00:52", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "100%", metaEFC: "99%", realEFC: "100%" },
+      { user: "Douglas Martins Ribeiro Lima", date: "20/10/2026", metaTMA: "01:19", realTMA: "01:18", metaAD: "90%", realAD: "87%", metaEFD: "90%", realEFD: "92%", metaEFC: "99%", realEFC: "100%" },
+      { user: "Douglas Martins Ribeiro Lima", date: "21/10/2026", metaTMA: "01:19", realTMA: "01:08", metaAD: "90%", realAD: "100%", metaEFD: "90%", realEFD: "95%", metaEFC: "99%", realEFC: "100%" },
+      { user: "Douglas Martins Ribeiro Lima", date: "22/10/2026", metaTMA: "", realTMA: "", metaAD: "", realAD: "", metaEFD: "", realEFD: "", metaEFC: "99%", realEFC: "100%" },
+      { user: "Douglas Martins Ribeiro Lima", date: "23/10/2026", metaTMA: "", realTMA: "", metaAD: "", realAD: "", metaEFD: "", realEFD: "", metaEFC: "99%", realEFC: "100%" },
+      { user: "Douglas Martins Ribeiro Lima", date: "24/10/2026", metaTMA: "", realTMA: "", metaAD: "0%", realAD: "", metaEFD: "", realEFD: "", metaEFC: "99%", realEFC: "100%" }
+    ];
+
+    // Helpers
+    function parseTimeToMinutes(timeStr) {
+      if(!timeStr) return 0;
+      const [h, m] = timeStr.split(':').map(Number);
+      return (h * 60) + m;
+    }
+
+    function parsePercent(pctStr) {
+      if(!pctStr) return 0;
+      return parseFloat(pctStr.replace('%', ''));
+    }
+
+    function parseDate(dateStr) {
+      const [day, month, year] = dateStr.split('/').map(Number);
+      return new Date(year, month - 1, day);
+    }
+
+    function isSunday(dateStr) {
+      const d = parseDate(dateStr);
+      return d.getDay() === 0;
+    }
+
+    function evaluateHits(row) {
+      const hitTMA = parseTimeToMinutes(row.realTMA) <= parseTimeToMinutes(row.metaTMA);
+      const hitAD = parsePercent(row.realAD) >= parsePercent(row.metaAD);
+      const hitEFD = parsePercent(row.realEFD) >= parsePercent(row.metaEFD);
+      const hitEFC = parsePercent(row.realEFC) >= parsePercent(row.metaEFC);
+
+      const sunday = isSunday(row.date);
+      const hitCount = (hitTMA ? 1 : 0) + (hitAD ? 1 : 0) + (hitEFD ? 1 : 0) + (hitEFC ? 1 : 0);
+      const dailyEarned = sunday ? 0 : (hitCount * DAILY_INDICATOR_RATE);
+
+      return {
+        hitTMA,
+        hitAD,
+        hitEFD,
+        hitEFC,
+        hitCount,
+        isSunday: sunday,
+        dailyEarned
+      };
+    }
+
+    // State Variables
+    let filteredData = [...rawTimelineData];
+    let bonusChartInstance = null;
+    let kpiChartInstance = null;
+
+    // --- RENDER FUNCTIONS ---
+    function renderSummaryTable(data) {
+      const tbody = document.getElementById('timelineTableBody');
+      const summaryBody = document.getElementById('summaryTableBody');
+
+      const usersMap = {};
+
+      data.forEach(item => {
+        if (!usersMap[item.user]) {
+          usersMap[item.user] = {
+            user: item.user,
+            totalDays: 0,
+            validDays: 0,
+            hitsTMA: 0,
+            hitsAD: 0,
+            hitsEFD: 0,
+            hitsEFC: 0,
+            lastRealTMA: item.realTMA,
+            lastRealAD: item.realAD,
+            lastRealEFD: item.realEFD,
+            lastRealEFC: item.realEFC,
+            totalBonus: 0
+          };
+        }
+
+        const evalRes = evaluateHits(item);
+        usersMap[item.user].totalDays++;
+
+        if (!evalRes.isSunday) {
+          usersMap[item.user].validDays++;
+          if (evalRes.hitTMA) usersMap[item.user].hitsTMA++;
+          if (evalRes.hitAD) usersMap[item.user].hitsAD++;
+          if (evalRes.hitEFD) usersMap[item.user].hitsEFD++;
+          if (evalRes.hitEFC) usersMap[item.user].hitsEFC++;
+          usersMap[item.user].totalBonus += evalRes.dailyEarned;
+        }
+
+        usersMap[item.user].lastRealTMA = item.realTMA;
+        usersMap[item.user].lastRealAD = item.realAD;
+        usersMap[item.user].lastRealEFD = item.realEFD;
+        usersMap[item.user].lastRealEFC = item.realEFC;
+      });
+
+      summaryBody.innerHTML = Object.values(usersMap).map(u => {
+        const bonusTMA = u.hitsTMA * DAILY_INDICATOR_RATE;
+        const bonusAD = u.hitsAD * DAILY_INDICATOR_RATE;
+        const bonusEFD = u.hitsEFD * DAILY_INDICATOR_RATE;
+        const bonusEFC = u.hitsEFC * DAILY_INDICATOR_RATE;
+
+        const isTMAHit = u.hitsTMA > 0;
+        const isADHit = u.hitsAD > 0;
+        const isEFDHit = u.hitsEFD > 0;
+        const isEFCHit = u.hitsEFC > 0;
+
+        return `
+          <tr class="hover:bg-slate-800/60 transition-colors">
+            <td class="py-3.5 px-4 font-medium text-slate-100 flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-xs font-bold text-emerald-400 shrink-0">
+                ${u.user.charAt(0)}
+              </div>
+              <span class="font-semibold text-sm">${u.user}</span>
+            </td>
+
+            <td class="py-3 px-3 text-center">
+              <div class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-2 flex flex-col items-center gap-1">
+                <span class="text-[10px] text-slate-400">Meta: ≤ 01:19</span>
+                <span class="text-xs font-bold text-slate-100">Real: ${u.lastRealTMA}</span>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${isTMAHit ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
+                  <i data-lucide="${isTMAHit ? 'check' : 'x'}" class="w-3 h-3"></i> ${isTMAHit ? 'Batida' : 'Não Atingida'}
+                </span>
+                <span class="text-[10px] text-slate-400 font-medium">R$ ${bonusTMA.toFixed(2)}</span>
+              </div>
+            </td>
+
+            <td class="py-3 px-3 text-center">
+              <div class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-2 flex flex-col items-center gap-1">
+                <span class="text-[10px] text-slate-400">Meta: ≥ 90%</span>
+                <span class="text-xs font-bold text-slate-100">Real: ${u.lastRealAD}</span>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${isADHit ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
+                  <i data-lucide="${isADHit ? 'check' : 'x'}" class="w-3 h-3"></i> ${isADHit ? 'Batida' : 'Não Atingida'}
+                </span>
+                <span class="text-[10px] text-slate-400 font-medium">R$ ${bonusAD.toFixed(2)}</span>
+              </div>
+            </td>
+
+            <td class="py-3 px-3 text-center">
+              <div class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-2 flex flex-col items-center gap-1">
+                <span class="text-[10px] text-slate-400">Meta: ≥ 90%</span>
+                <span class="text-xs font-bold text-slate-100">Real: ${u.lastRealEFD}</span>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${isEFDHit ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
+                  <i data-lucide="${isEFDHit ? 'check' : 'x'}" class="w-3 h-3"></i> ${isEFDHit ? 'Batida' : 'Não Atingida'}
+                </span>
+                <span class="text-[10px] text-slate-400 font-medium">R$ ${bonusEFD.toFixed(2)}</span>
+              </div>
+            </td>
+
+            <td class="py-3 px-3 text-center">
+              <div class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-2 flex flex-col items-center gap-1">
+                <span class="text-[10px] text-slate-400">Meta: ≥ 99%</span>
+                <span class="text-xs font-bold text-slate-100">Real: ${u.lastRealEFC}</span>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${isEFCHit ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
+                  <i data-lucide="${isEFCHit ? 'check' : 'x'}" class="w-3 h-3"></i> ${isEFCHit ? 'Batida' : 'Não Atingida'}
+                </span>
+                <span class="text-[10px] text-slate-400 font-medium">R$ ${bonusEFC.toFixed(2)}</span>
+              </div>
+            </td>
+
+            <td class="py-3 px-4 text-right font-bold text-emerald-400 text-base align-middle">
+              R$ ${u.totalBonus.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      tbody.innerHTML = data.map(item => {
+        const evalRes = evaluateHits(item);
+        const dayOfWeek = parseDate(item.date).toLocaleDateString('pt-BR', { weekday: 'short' });
+
+        return `
+          <tr class="transition-colors ${evalRes.isSunday ? 'bg-amber-500/[0.04] border-l-2 border-amber-500/50' : 'hover:bg-slate-800/40'}">
+            <td class="py-2.5 px-3 font-medium text-slate-200">${item.user}</td>
+            <td class="py-2.5 px-3 text-slate-400">${item.date}</td>
+            <td class="py-2.5 px-3 text-center">
+              <span class="capitalize text-xs font-semibold ${evalRes.isSunday ? 'text-amber-400' : 'text-slate-400'}">
+                ${dayOfWeek}
+              </span>
+            </td>
+            
+            <td class="py-2.5 px-3 text-center">
+              <div class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-2 flex flex-col items-center gap-1">
+                <span class="text-[10px] text-slate-400">Meta: ≤ ${item.metaTMA}</span>
+                <span class="text-xs font-bold text-slate-100">Real: ${item.realTMA}</span>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${evalRes.hitTMA ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
+                  <i data-lucide="${evalRes.hitTMA ? 'check' : 'x'}" class="w-3 h-3"></i> ${evalRes.hitTMA ? 'Batida' : 'Não Atingida'}
+                </span>
+              </div>
+            </td>
+
+            <td class="py-2.5 px-3 text-center">
+              <div class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-2 flex flex-col items-center gap-1">
+                <span class="text-[10px] text-slate-400">Meta: ≥ ${item.metaAD}</span>
+                <span class="text-xs font-bold text-slate-100">Real: ${item.realAD}</span>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${evalRes.hitAD ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
+                  <i data-lucide="${evalRes.hitAD ? 'check' : 'x'}" class="w-3 h-3"></i> ${evalRes.hitAD ? 'Batida' : 'Não Atingida'}
+                </span>
+              </div>
+            </td>
+
+            <td class="py-2.5 px-3 text-center">
+              <div class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-2 flex flex-col items-center gap-1">
+                <span class="text-[10px] text-slate-400">Meta: ≥ ${item.metaEFD}</span>
+                <span class="text-xs font-bold text-slate-100">Real: ${item.realEFD}</span>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${evalRes.hitEFD ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
+                  <i data-lucide="${evalRes.hitEFD ? 'check' : 'x'}" class="w-3 h-3"></i> ${evalRes.hitEFD ? 'Batida' : 'Não Atingida'}
+                </span>
+              </div>
+            </td>
+
+            <td class="py-2.5 px-3 text-center">
+              <div class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-2 flex flex-col items-center gap-1">
+                <span class="text-[10px] text-slate-400">Meta: ≥ ${item.metaEFC}</span>
+                <span class="text-xs font-bold text-slate-100">Real: ${item.realEFC}</span>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${evalRes.hitEFC ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
+                  <i data-lucide="${evalRes.hitEFC ? 'check' : 'x'}" class="w-3 h-3"></i> ${evalRes.hitEFC ? 'Batida' : 'Não Atingida'}
+                </span>
+              </div>
+            </td>
+
+            <td class="py-2.5 px-3 text-center align-middle">
+              ${evalRes.isSunday ? `
+                <span class="inline-flex items-center gap-1 text-amber-400 text-xs px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 font-medium">
+                  <i data-lucide="minus-circle" class="w-3 h-3"></i> Domingo (Isento)
+                </span>
+              ` : `
+                <span class="inline-flex items-center gap-1 text-slate-300 text-xs font-medium">
+                  <strong>${evalRes.hitCount}/4</strong> Metas Batidas
+                </span>
+              `}
+            </td>
+
+            <td class="py-2.5 px-3 text-right font-semibold ${evalRes.isSunday ? 'text-slate-500' : 'text-emerald-400'} align-middle">
+              R$ ${evalRes.dailyEarned.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function updateKPIs(data) {
+      let grandTotalBonus = 0;
+      let totalHitCount = 0;
+      let totalOpportunities = 0;
+      
+      const userBonusMap = {};
+
+      data.forEach(item => {
+        const evalRes = evaluateHits(item);
+        
+        if (!userBonusMap[item.user]) userBonusMap[item.user] = 0;
+
+        if (!evalRes.isSunday) {
+          grandTotalBonus += evalRes.dailyEarned;
+          totalHitCount += evalRes.hitCount;
+          totalOpportunities += 4;
+          userBonusMap[item.user] += evalRes.dailyEarned;
+        }
+      });
+
+      document.getElementById('kpiBonus').innerText = `R$ ${grandTotalBonus.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+      const hitRate = totalOpportunities > 0 ? ((totalHitCount / totalOpportunities) * 100).toFixed(1) : 0;
+      document.getElementById('kpiHitRate').innerText = `${hitRate}%`;
+      document.getElementById('kpiHitRateSub').innerText = `${totalHitCount} de ${totalOpportunities} metas batidas`;
+
+      let topUser = "-";
+      let maxBonus = -1;
+      Object.entries(userBonusMap).forEach(([u, val]) => {
+        if (val > maxBonus) {
+          maxBonus = val;
+          topUser = u;
+        }
+      });
+
+      document.getElementById('kpiTopUser').innerText = topUser;
+      document.getElementById('kpiTopUserSub').innerText = maxBonus > 0 ? `Ganho: R$ ${maxBonus.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Sem dados';
+    }
+
+    function renderCharts(data) {
+      const dateMap = {};
+      const sortedData = [...data].sort((a, b) => parseDate(a.date) - parseDate(b.date));
+
+      sortedData.forEach(item => {
+        const evalRes = evaluateHits(item);
+        if (!evalRes.isSunday) {
+          if (!dateMap[item.date]) dateMap[item.date] = 0;
+          dateMap[item.date] += evalRes.dailyEarned;
+        }
+      });
+
+      const labelsLine = Object.keys(dateMap);
+      const valuesLine = Object.values(dateMap);
+
+      if (bonusChartInstance) bonusChartInstance.destroy();
+
+      const ctxLine = document.getElementById('bonusChart').getContext('2d');
+      bonusChartInstance = new Chart(ctxLine, {
+        type: 'line',
+        data: {
+          labels: labelsLine,
+          datasets: [{
+            label: 'Total Distribuído no Dia (R$)',
+            data: valuesLine,
+            borderColor: '#22c55e',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            fill: true,
+            tension: 0.3,
+            borderWidth: 2,
+            pointBackgroundColor: '#22c55e'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: '#94a3b8' } }
+          },
+          scales: {
+            x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+            y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' }, beginAtZero: true }
+          }
+        }
+      });
+
+      let totalValidDays = 0;
+      let sumTMA = 0, sumAD = 0, sumEFD = 0, sumEFC = 0;
+
+      data.forEach(item => {
+        const evalRes = evaluateHits(item);
+        if (!evalRes.isSunday) {
+          totalValidDays++;
+          if (evalRes.hitTMA) sumTMA++;
+          if (evalRes.hitAD) sumAD++;
+          if (evalRes.hitEFD) sumEFD++;
+          if (evalRes.hitEFC) sumEFC++;
+        }
+      });
+
+      const pctTMA = totalValidDays > 0 ? ((sumTMA / totalValidDays) * 100).toFixed(1) : 0;
+      const pctAD = totalValidDays > 0 ? ((sumAD / totalValidDays) * 100).toFixed(1) : 0;
+      const pctEFD = totalValidDays > 0 ? ((sumEFD / totalValidDays) * 100).toFixed(1) : 0;
+      const pctEFC = totalValidDays > 0 ? ((sumEFC / totalValidDays) * 100).toFixed(1) : 0;
+
+      if (kpiChartInstance) kpiChartInstance.destroy();
+
+      const ctxBar = document.getElementById('kpiChart').getContext('2d');
+      kpiChartInstance = new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+          labels: ['TMA (Tempo)', 'AD WMS (%)', 'EFD (%)', 'EFC (%)'],
+          datasets: [{
+            label: 'Taxa de Atingimento (%)',
+            data: [pctTMA, pctAD, pctEFD, pctEFC],
+            backgroundColor: [
+              'rgba(59, 130, 246, 0.7)',
+              'rgba(16, 185, 129, 0.7)',
+              'rgba(245, 158, 11, 0.7)',
+              'rgba(168, 85, 247, 0.7)'
+            ],
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
+            y: { 
+              ticks: { color: '#94a3b8' }, 
+              grid: { color: '#334155' }, 
+              max: 100, 
+              beginAtZero: true 
+            }
+          }
+        }
+      });
+    }
+
+    function applyFilters() {
+      const selectedUser = currentUser && currentUser.role === 'user' ? currentUser.name : document.getElementById('userFilter').value;
+      const dateStart = document.getElementById('dateStart').value;
+      const dateEnd = document.getElementById('dateEnd').value;
+      const search = document.getElementById('searchInput').value.toLowerCase();
+
+      filteredData = rawTimelineData.filter(item => {
+        if (selectedUser !== 'ALL' && item.user !== selectedUser) return false;
+
+        const itemDate = parseDate(item.date);
+        if (dateStart) {
+          const start = new Date(dateStart + 'T00:00:00');
+          if (itemDate < start) return false;
+        }
+        if (dateEnd) {
+          const end = new Date(dateEnd + 'T23:59:59');
+          if (itemDate > end) return false;
+        }
+
+        if (search) {
+          const text = `${item.user} ${item.date}`.toLowerCase();
+          if (!text.includes(search)) return false;
+        }
+
+        return true;
+      });
+
+      renderSummaryTable(filteredData);
+      updateKPIs(filteredData);
+      renderCharts(filteredData);
+    }
+
+    function resetFilters() {
+      if (currentUser && currentUser.role === 'admin') {
+        document.getElementById('userFilter').value = 'ALL';
+      }
+      document.getElementById('dateStart').value = '';
+      document.getElementById('dateEnd').value = '';
+      document.getElementById('searchInput').value = '';
+      applyFilters();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+    });
+  </script>
+
+</body>
+</html>
